@@ -1,4 +1,5 @@
 import json
+import os
 import textwrap
 import time
 from pathlib import Path
@@ -24,8 +25,15 @@ METRICS_PATH = ROOT / "models" / "metrics.json"
 
 DEFAULT_API_URL = "http://127.0.0.1:8000"
 
+try:
+    API_URL = st.secrets.get("API_BASE_URL", DEFAULT_API_URL)
+except Exception:
+    API_URL = os.getenv("API_BASE_URL", DEFAULT_API_URL)
+
+API_URL = str(API_URL).rstrip("/")
+
 if "api_url" not in st.session_state:
-    st.session_state.api_url = DEFAULT_API_URL
+    st.session_state.api_url = API_URL
 
 if "current_page" not in st.session_state:
     st.session_state.current_page = "Home"
@@ -115,7 +123,7 @@ render_html(
     }
 
     .block-container {
-        max-width: 1150px;
+        max-width: 1200px;
         padding-top: 1.5rem;
         padding-bottom: 3.5rem;
     }
@@ -892,7 +900,7 @@ elif st.session_state.current_page == "Loan Prediction":
                     st.session_state.last_prediction = resp.json()
             except Exception as e:
                 st.error(f"Prediction request failed: {e}")
-                st.info("Ensure backend is running: `uvicorn backend.app:app --host 127.0.0.1 --port 8000`")
+                st.info(f"Ensure backend is running at {st.session_state.api_url}")
 
     result = st.session_state.last_prediction
     if result:
@@ -1206,8 +1214,8 @@ elif st.session_state.current_page == "Model Performance":
     render_html(
         """
         <div class="page-header">
-            <h1>Model Performance</h1>
-            <p>Review the evaluation results of the trained Random Forest classification model.</p>
+            <h1 style="font-size: 32px; font-weight: 800; color: #172554; margin: 0 0 0.25rem 0;">Model Performance</h1>
+            <p style="font-size: 15px; color: #64748B; margin: 0;">Review the evaluation results of the trained Random Forest classification model.</p>
         </div>
         """
     )
@@ -1217,7 +1225,7 @@ elif st.session_state.current_page == "Model Performance":
     if not metrics:
         st.warning("No metrics.json file found in models/. Run training pipeline first.")
     else:
-        m1, m2, m3, m4, m5 = st.columns(5)
+        m1, m2, m3, m4, m5 = st.columns(5, gap="medium")
         with m1:
             render_html(
                 f"""
@@ -1269,42 +1277,46 @@ elif st.session_state.current_page == "Model Performance":
                 """
             )
 
-        st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
-        col_cm, col_meta = st.columns([1.3, 1])
+        st.markdown("<div style='margin-top: 1.75rem;'></div>", unsafe_allow_html=True)
+        col_cm, col_meta = st.columns([2.1, 1], gap="large")
 
         with col_cm:
-            st.subheader("Confusion Matrix")
+            render_html(
+                """
+                <h2 style="font-size: 26px; font-weight: 700; color: #172554; margin: 0 0 1rem 0; line-height: 1.2;">Confusion Matrix</h2>
+                """
+            )
             cm_data = metrics.get("confusion_matrix", [[113, 22], [38, 127]])
             tn, fp, fn, tp = cm_data[0][0], cm_data[0][1], cm_data[1][0], cm_data[1][1]
 
             render_html(
                 f"""
-                <div class="fin-card">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: center;">
+                <div class="fin-card" style="padding: 1.5rem;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; text-align: center; margin: 0 auto;">
                         <thead>
                             <tr style="border-bottom: 2px solid #E2E8F0; color: #172554;">
-                                <th style="padding: 0.75rem; text-align: left;">Actual / Predicted</th>
-                                <th style="padding: 0.75rem; background: #F8FAFC;">Predicted Rejected</th>
-                                <th style="padding: 0.75rem; background: #F8FAFC;">Predicted Approved</th>
+                                <th style="padding: 0.85rem 1rem; text-align: left; font-size: 0.9rem; color: #172554;">Actual / Predicted</th>
+                                <th style="padding: 0.85rem 1rem; background: #F8FAFC; font-size: 0.9rem; color: #172554; width: 35%;">Predicted Rejected</th>
+                                <th style="padding: 0.85rem 1rem; background: #F8FAFC; font-size: 0.9rem; color: #172554; width: 35%;">Predicted Approved</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr style="border-bottom: 1px solid #F1F5F9;">
-                                <td style="padding: 0.85rem; font-weight: 700; text-align: left; color: #172554;">Actual Rejected</td>
-                                <td style="padding: 0.85rem; background: #F0FDF4; font-weight: 700; color: #059669;">
-                                    {tn} <div style="font-size: 0.72rem; font-weight: 500; color: #64748B;">True Negative</div>
+                                <td style="padding: 1rem; font-weight: 700; text-align: left; color: #172554; font-size: 0.9rem;">Actual Rejected</td>
+                                <td style="padding: 1rem; background: #F0FDF4; font-weight: 700; color: #059669; font-size: 1.1rem;">
+                                    {tn} <div style="font-size: 0.78rem; font-weight: 500; color: #64748B; margin-top: 0.2rem;">True Negative</div>
                                 </td>
-                                <td style="padding: 0.85rem; background: #FEF2F2; font-weight: 700; color: #DC2626;">
-                                    {fp} <div style="font-size: 0.72rem; font-weight: 500; color: #64748B;">False Positive</div>
+                                <td style="padding: 1rem; background: #FEF2F2; font-weight: 700; color: #DC2626; font-size: 1.1rem;">
+                                    {fp} <div style="font-size: 0.78rem; font-weight: 500; color: #64748B; margin-top: 0.2rem;">False Positive</div>
                                 </td>
                             </tr>
                             <tr>
-                                <td style="padding: 0.85rem; font-weight: 700; text-align: left; color: #172554;">Actual Approved</td>
-                                <td style="padding: 0.85rem; background: #FEF2F2; font-weight: 700; color: #DC2626;">
-                                    {fn} <div style="font-size: 0.72rem; font-weight: 500; color: #64748B;">False Negative</div>
+                                <td style="padding: 1rem; font-weight: 700; text-align: left; color: #172554; font-size: 0.9rem;">Actual Approved</td>
+                                <td style="padding: 1rem; background: #FEF2F2; font-weight: 700; color: #DC2626; font-size: 1.1rem;">
+                                    {fn} <div style="font-size: 0.78rem; font-weight: 500; color: #64748B; margin-top: 0.2rem;">False Negative</div>
                                 </td>
-                                <td style="padding: 0.85rem; background: #F0FDF4; font-weight: 700; color: #059669;">
-                                    {tp} <div style="font-size: 0.72rem; font-weight: 500; color: #64748B;">True Positive</div>
+                                <td style="padding: 1rem; background: #F0FDF4; font-weight: 700; color: #059669; font-size: 1.1rem;">
+                                    {tp} <div style="font-size: 0.78rem; font-weight: 500; color: #64748B; margin-top: 0.2rem;">True Positive</div>
                                 </td>
                             </tr>
                         </tbody>
@@ -1314,25 +1326,29 @@ elif st.session_state.current_page == "Model Performance":
             )
 
         with col_meta:
-            st.subheader("Model Information")
+            render_html(
+                """
+                <h2 style="font-size: 26px; font-weight: 700; color: #172554; margin: 0 0 1rem 0; line-height: 1.2;">Model Information</h2>
+                """
+            )
             render_html(
                 f"""
-                <div class="fin-card">
-                    <div style="display: flex; justify-content: space-between; padding: 0.65rem 0; border-bottom: 1px solid #F1F5F9;">
-                        <span style="color: #64748B; font-weight: 500;">Algorithm</span>
-                        <span style="font-weight: 700; color: #172554;">{metrics.get('model_name', 'RandomForestClassifier')}</span>
+                <div class="fin-card" style="padding: 1.5rem;">
+                    <div style="margin-bottom: 1.15rem;">
+                        <div style="font-size: 15px; font-weight: 500; color: #64748B; margin-bottom: 0.25rem;">Algorithm</div>
+                        <div style="font-size: 19px; font-weight: 700; color: #172554; word-break: break-word; line-height: 1.3;">{metrics.get('model_name', 'RandomForestClassifier')}</div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; padding: 0.65rem 0; border-bottom: 1px solid #F1F5F9;">
-                        <span style="color: #64748B; font-weight: 500;">Model Version</span>
-                        <span style="font-weight: 700; color: #172554;">v{metrics.get('model_version', '1.0.0')}</span>
+                    <div style="margin-bottom: 1.15rem;">
+                        <div style="font-size: 15px; font-weight: 500; color: #64748B; margin-bottom: 0.25rem;">Model Version</div>
+                        <div style="font-size: 19px; font-weight: 700; color: #172554;">v{metrics.get('model_version', '1.0.0')}</div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; padding: 0.65rem 0; border-bottom: 1px solid #F1F5F9;">
-                        <span style="color: #64748B; font-weight: 500;">Test Samples</span>
-                        <span style="font-weight: 700; color: #172554;">{metrics.get('test_rows', 300):,}</span>
+                    <div style="margin-bottom: 1.15rem;">
+                        <div style="font-size: 15px; font-weight: 500; color: #64748B; margin-bottom: 0.25rem;">Test Samples</div>
+                        <div style="font-size: 19px; font-weight: 700; color: #172554;">{metrics.get('test_rows', 300):,}</div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; padding: 0.65rem 0;">
-                        <span style="color: #64748B; font-weight: 500;">Training Samples</span>
-                        <span style="font-weight: 700; color: #172554;">{metrics.get('training_rows', 1200):,}</span>
+                    <div>
+                        <div style="font-size: 15px; font-weight: 500; color: #64748B; margin-bottom: 0.25rem;">Training Samples</div>
+                        <div style="font-size: 19px; font-weight: 700; color: #172554;">{metrics.get('training_rows', 1200):,}</div>
                     </div>
                 </div>
                 """
@@ -1340,7 +1356,7 @@ elif st.session_state.current_page == "Model Performance":
 
         render_html(
             """
-            <div class="fin-card" style="margin-top: 1rem;">
+            <div class="fin-card" style="margin-top: 1.25rem;">
                 <div style="font-size: 0.95rem; font-weight: 700; color: #172554; margin-bottom: 0.4rem;">Evaluation Insights</div>
                 <div style="font-size: 0.88rem; color: #334155; line-height: 1.55;">
                     The ensemble classifier achieves high discriminant capacity (ROC-AUC 0.889) with balanced precision (85.2%) and recall (77.0%), mitigating false approvals while capturing qualified borrowers reliably.
